@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Praise, Employee } from '../types';
-import { Heart, Search, Filter, Trash2, Edit3, Sparkles, User, Building, Calendar, ArrowRight } from 'lucide-react';
+import { Heart, Search, Filter, Trash2, Edit3, Sparkles, User, Building, Calendar, ArrowRight, Download } from 'lucide-react';
+import { SketchbookExportModal } from './SketchbookExportModal';
 
 interface PraiseFeedProps {
   praises: Praise[];
@@ -25,6 +26,7 @@ export const PraiseFeed: React.FC<PraiseFeedProps> = ({
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [selectedPerson, setSelectedPerson] = useState('ALL');
   const [viewMode, setViewMode] = useState<'all' | 'person'>('all');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const departments = Array.from(new Set(employees.map(e => e.department)));
 
@@ -118,17 +120,33 @@ export const PraiseFeed: React.FC<PraiseFeedProps> = ({
       </div>
 
       {/* Relay Timeline Banner */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         <h2 className="text-2xl font-extrabold text-pink-700 flex items-center gap-2">
           <span>🖍️</span> 칭찬 릴레이 스케치보드 ({filteredPraises.length}개)
         </h2>
-        <button
-          onClick={onNavigateToWrite}
-          className="crayon-btn bg-pink-300 hover:bg-pink-400 text-white font-bold px-4 py-2 text-sm flex items-center gap-1 shadow-xs cursor-pointer"
-        >
-          <Sparkles className="w-4 h-4" /> 나도 칭찬하기!
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsExportModalOpen(true)}
+            className="crayon-btn bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold px-4 py-2 text-sm flex items-center gap-1.5 shadow-xs cursor-pointer"
+          >
+            <Download className="w-4 h-4" /> 주간/월간 HTML 다운로드
+          </button>
+          <button
+            onClick={onNavigateToWrite}
+            className="crayon-btn bg-pink-300 hover:bg-pink-400 text-white font-bold px-4 py-2 text-sm flex items-center gap-1 shadow-xs cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4" /> 나도 칭찬하기!
+          </button>
+        </div>
       </div>
+
+      {/* Sketchbook Export Modal */}
+      <SketchbookExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        praises={praises}
+        employees={employees}
+      />
 
       {/* Praises Grid */}
       {filteredPraises.length === 0 ? (
