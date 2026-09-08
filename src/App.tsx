@@ -5,6 +5,8 @@ import { PraiseFeed } from './components/PraiseFeed';
 import { PraiseForm } from './components/PraiseForm';
 import { EmailSimulatorModal } from './components/EmailSimulatorModal';
 import { AdminView } from './components/AdminView';
+import { AuthScreen } from './components/AuthScreen';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
 
 // Safe API Fetch helper with Content-Type check and logging
 async function apiFetch<T = any>(url: string, options?: RequestInit): Promise<T> {
@@ -35,6 +37,7 @@ async function apiFetch<T = any>(url: string, options?: RequestInit): Promise<T>
 }
 
 export default function App() {
+  const [user, setUser] = useState<{ email: string; name: string } | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [praises, setPraises] = useState<Praise[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -43,6 +46,35 @@ export default function App() {
   const [editingPraise, setEditingPraise] = useState<Praise | null>(null);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Check Supabase session on mount
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          setUser({
+            email: session.user.email || '',
+            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '사용자'
+          });
+        }
+      });
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          setUser({
+            email: session.user.email || '',
+            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '사용자'
+          });
+        } else {
+          setUser(null);
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, []);
 
   // Fetch initial data
   useEffect(() => {
@@ -148,6 +180,10 @@ export default function App() {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
 
+  if (!user) {
+    return <AuthScreen onLoginSuccess={setUser} />;
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fffdf5] font-bold text-xl text-pink-600">
@@ -171,6 +207,13 @@ export default function App() {
           setCurrentPersona={setCurrentPersona}
           unreadCount={unreadCount}
           onOpenEmailModal={() => setIsEmailModalOpen(true)}
+          user={user}
+          onLogout={async () => {
+            if (isSupabaseConfigured) {
+              await supabase.auth.signOut();
+            }
+            setUser(null);
+          }}
         />
 
         {/* Main Body Content based on Active Tab */}

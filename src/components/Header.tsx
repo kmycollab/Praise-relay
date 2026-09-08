@@ -1,6 +1,6 @@
 import React from 'react';
 import { Employee } from '../types';
-import { Sparkles, Mail, UserCheck, Shield, BookOpen, PenTool, Send } from 'lucide-react';
+import { Sparkles, Mail, UserCheck, Shield, BookOpen, PenTool, Send, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: 'feed' | 'write' | 'notifications' | 'admin';
@@ -10,6 +10,8 @@ interface HeaderProps {
   setCurrentPersona: (emp: Employee | null) => void;
   unreadCount: number;
   onOpenEmailModal: () => void;
+  user: { email: string; name: string } | null;
+  onLogout: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,6 +22,8 @@ export const Header: React.FC<HeaderProps> = ({
   setCurrentPersona,
   unreadCount,
   onOpenEmailModal,
+  user,
+  onLogout,
 }) => {
   const currentBatonHolder = employees.find(e => e.isEligibleToRelay);
 
@@ -46,11 +50,24 @@ export const Header: React.FC<HeaderProps> = ({
           </p>
         </div>
 
-        {/* Persona Switcher & Baton Status */}
+        {/* Persona Switcher & Baton Status & Logout */}
         <div className="flex flex-col sm:flex-row items-center gap-3">
+          {user && (
+            <div className="bg-white/90 border-2 border-dashed border-purple-300 px-3 py-1.5 rounded-xl shadow-xs text-xs flex items-center gap-2">
+              <span className="font-bold text-purple-700">👤 {user.name} ({user.email})</span>
+              <button
+                onClick={onLogout}
+                className="bg-red-100 hover:bg-red-200 text-red-700 p-1 rounded-lg transition cursor-pointer"
+                title="로그아웃"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           <div className="bg-white/90 border-2 border-dashed border-pink-300 px-4 py-2 rounded-2xl shadow-sm text-sm flex items-center gap-2">
             <span className="font-bold text-pink-600 flex items-center gap-1">
-              <UserCheck className="w-4 h-4" /> 내 계정:
+              <UserCheck className="w-4 h-4" /> 릴레이 페르소나:
             </span>
             <select
               className="bg-pink-50 border border-pink-200 rounded-lg px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pink-300"
@@ -60,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
                 setCurrentPersona(found || null);
               }}
             >
-              <option value="">-- 로그인할 임직원 선택 --</option>
+              <option value="">-- 페르소나 선택 --</option>
               {employees.map(emp => (
                 <option key={emp.id} value={emp.email}>
                   {emp.name} ({emp.department}) {emp.isEligibleToRelay ? '🔥[바통보유]' : ''}

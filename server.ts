@@ -70,6 +70,10 @@ let notifications = [
 ];
 
 // API Routes
+app.use("/api", (req, res, next) => {
+  console.log(`[Server API] ${req.method} ${req.originalUrl}`, req.body);
+  next();
+});
 
 // Employees
 app.get("/api/employees", (req, res) => {
