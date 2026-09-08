@@ -1,0 +1,6 @@
+{
+  "name": "스케치북 칭찬릴레이",
+  "description": "5살 어린아이가 스케치북에 그린듯한 귀여운 사내 칭찬릴레이 및 임직원 소통 프로그램",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
