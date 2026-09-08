@@ -151,14 +151,20 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('admin')}
+          onClick={() => {
+            if (!user || user.email.toLowerCase() !== 'mykang@lxmma.com') {
+              alert('🔒 관리자 전용 뷰는 인가된 관리자 계정(mykang@lxmma.com)만 접근할 수 있습니다.');
+              return;
+            }
+            setActiveTab('admin');
+          }}
           className={`px-5 py-2.5 rounded-2xl font-bold text-base transition-all flex items-center gap-2 cursor-pointer shadow-xs ${
             activeTab === 'admin'
               ? 'bg-purple-400 text-white shadow-md transform -translate-y-0.5 ring-2 ring-purple-300'
               : 'bg-white text-gray-700 hover:bg-purple-50 border-2 border-purple-200'
           }`}
         >
-          <Shield className="w-5 h-5" /> 관리자 전용 뷰
+          <Shield className="w-5 h-5" /> 관리자 전용 뷰 {user?.email?.toLowerCase() !== 'mykang@lxmma.com' && '🔒'}
         </button>
       </div>
     </header>

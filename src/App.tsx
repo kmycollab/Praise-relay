@@ -287,20 +287,39 @@ export default function App() {
           )}
 
           {activeTab === 'admin' && (
-            <AdminView
-              employees={employees}
-              praises={praises}
-              onAddEmployee={handleAddEmployee}
-              onUpdateEmployee={handleUpdateEmployee}
-              onDeleteEmployee={handleDeleteEmployee}
-              onBulkAddEmployees={handleBulkAddEmployees}
-              onDeletePraise={handleDeletePraise}
-              onEditPraise={handleStartEditPraise}
-              onInitialRegisterPraise={() => {
-                setEditingPraise(null);
-                setActiveTab('write');
-              }}
-            />
+            user?.email?.toLowerCase() === 'mykang@lxmma.com' ? (
+              <AdminView
+                employees={employees}
+                praises={praises}
+                onAddEmployee={handleAddEmployee}
+                onUpdateEmployee={handleUpdateEmployee}
+                onDeleteEmployee={handleDeleteEmployee}
+                onBulkAddEmployees={handleBulkAddEmployees}
+                onDeletePraise={handleDeletePraise}
+                onEditPraise={handleStartEditPraise}
+                onInitialRegisterPraise={() => {
+                  setEditingPraise(null);
+                  setActiveTab('write');
+                }}
+              />
+            ) : (
+              <div className="max-w-xl mx-auto px-4 py-16 text-center">
+                <div className="crayon-card p-8 bg-red-50 border-red-300">
+                  <div className="text-5xl mb-4">🚫</div>
+                  <h2 className="text-2xl font-extrabold text-red-800 mb-2">접근 권한이 없습니다</h2>
+                  <p className="text-red-600 text-sm mb-6">
+                    관리자 전용 뷰는 인가된 관리자 계정(<b className="underline">mykang@lxmma.com</b>)만 접근할 수 있습니다.
+                    <br />현재 로그인 계정: <b>{user?.email}</b>
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('feed')}
+                    className="crayon-btn bg-pink-400 hover:bg-pink-500 text-white font-bold px-6 py-2.5 text-sm cursor-pointer shadow-xs"
+                  >
+                    칭찬 피드로 돌아가기 🔙
+                  </button>
+                </div>
+              </div>
+            )
           )}
         </main>
       </div>
