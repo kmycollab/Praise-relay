@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase, isSupabaseConfigured, saveSupabaseConfig } from '../lib/supabase';
-import { Lock, Mail, User, Sparkles, KeyRound, Database, ArrowRight, Settings, Check } from 'lucide-react';
+import { Lock, Mail, User, Sparkles, KeyRound, Database, ArrowRight, Settings, Check, Building } from 'lucide-react';
 
 interface AuthScreenProps {
   onLoginSuccess: (user: { email: string; name: string }) => void;
@@ -11,6 +11,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [department, setDepartment] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showSqlModal, setShowSqlModal] = useState(false);
@@ -54,17 +55,50 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
     try {
       if (isSignUp) {
+        if (!name || !department || !email || !password) {
+          setError('이름, 부서, 이메일, 비밀번호를 모두 입력해주세요.');
+          setLoading(false);
+          return;
+        }
+
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { full_name: name || email.split('@')[0] }
+            data: { full_name: name, department }
           }
         });
         if (signUpError) throw signUpError;
-        alert('회원가입 인증 메일이 발송되었거나 바로 로그인되었습니다!');
+
+        // Insert into Supabase employees table
+        const { error: dbError } = await supabase.from('employees').upsert([
+          {
+            name,
+            department,
+            email,
+            phone: '',
+            is_eligible_to_relay: false
+          }
+        ], { onConflict: 'email' });
+
+        if (dbError) {
+          console.error("Supabase employee table insert warning:", dbError);
+        }
+
+        // Also sync with backend API
+        try {
+          await fetch('/api/employees', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, department, phone: '', email })
+          });
+        } catch (apiErr) {
+          console.error("Backend employee sync warning:", apiErr);
+        }
+
+        alert('회원가입 및 사내 임직원 등록이 완료되었습니다!');
         if (data.user) {
-          onLoginSuccess({ email: data.user.email || email, name: name || '임직원' });
+          onLoginSuccess({ email: data.user.email || email, name });
         }
       } else {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
@@ -208,19 +242,34 @@ CREATE POLICY "Enable read/write for authenticated users on notifications" ON pu
 
         <form onSubmit={handleAuth} className="space-y-4">
           {isSignUp && (
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-1">
-                <User className="w-4 h-4 text-pink-500" /> 이름 (성명)
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="홍길동"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-pink-50/50 border-2 border-pink-200 rounded-xl px-4 py-2.5 font-medium focus:outline-none focus:ring-2 focus:ring-pink-300"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-1">
+                  <User className="w-4 h-4 text-pink-500" /> 이름 (성명)
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="홍길동"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-pink-50/50 border-2 border-pink-200 rounded-xl px-4 py-2.5 font-medium focus:outline-none focus:ring-2 focus:ring-pink-300"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-1">
+                  <Building className="w-4 h-4 text-pink-500" /> 부서명
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="개발팀 / 경영지원팀"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="w-full bg-pink-50/50 border-2 border-pink-200 rounded-xl px-4 py-2.5 font-medium focus:outline-none focus:ring-2 focus:ring-pink-300"
+                />
+              </div>
+            </>
           )}
 
           <div>
@@ -256,7 +305,7 @@ CREATE POLICY "Enable read/write for authenticated users on notifications" ON pu
             disabled={loading}
             className="crayon-btn bg-pink-400 hover:bg-pink-500 text-white font-bold w-full py-3 text-base shadow-md cursor-pointer flex items-center justify-center gap-2 mt-2"
           >
-            <span>{loading ? '처리 중...' : isSignUp ? '회원가입 완료하기' : '로그인하기 🚀'}</span>
+            <span>{loading ? '처리 중...' : isSignUp ? '회원가입 및 임직원 등록하기 🚀' : '로그인하기 🚀'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>

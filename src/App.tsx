@@ -98,6 +98,24 @@ export default function App() {
       });
   }, []);
 
+  // Realtime subscription for employees table
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      const channel = supabase
+        .channel('public:employees')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => {
+          apiFetch<Employee[]>('/api/employees')
+            .then(setEmployees)
+            .catch(console.error);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, []);
+
   const unreadCount = notifications.filter(n => !n.read).length;
 
   // Handlers for Praises
