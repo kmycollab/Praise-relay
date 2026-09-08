@@ -6,6 +6,34 @@ import { PraiseForm } from './components/PraiseForm';
 import { EmailSimulatorModal } from './components/EmailSimulatorModal';
 import { AdminView } from './components/AdminView';
 
+// Safe API Fetch helper with Content-Type check and logging
+async function apiFetch<T = any>(url: string, options?: RequestInit): Promise<T> {
+  console.log(`[API Request] ${options?.method || 'GET'} ${url}`, options?.body ? JSON.parse(options.body as string) : '');
+
+  let res: Response;
+  try {
+    res = await fetch(url, options);
+  } catch (networkErr) {
+    console.error(`[API Network Error]`, networkErr);
+    throw new Error(`네트워크 연결 오류 또는 서버 응답이 없습니다. (${url})`);
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+  console.log(`[API Response] ${res.status} ${res.statusText} | Content-Type: ${contentType}`);
+
+  if (!contentType.includes("application/json")) {
+    const textBody = await res.text();
+    console.error(`[API Non-JSON Response Body]:`, textBody);
+    throw new Error(`서버 오류 발생 (${res.status}): ${textBody.slice(0, 150) || '서버가 올바르지 않은 응답(HTML/텍스트)을 반환했습니다.'}`);
+  }
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || `요청 실패 (상태 코드 ${res.status})`);
+  }
+  return data;
+}
+
 export default function App() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [praises, setPraises] = useState<Praise[]>([]);
@@ -19,9 +47,9 @@ export default function App() {
   // Fetch initial data
   useEffect(() => {
     Promise.all([
-      fetch('/api/employees').then(res => res.json()),
-      fetch('/api/praises').then(res => res.json()),
-      fetch('/api/notifications').then(res => res.json()),
+      apiFetch<Employee[]>('/api/employees'),
+      apiFetch<Praise[]>('/api/praises'),
+      apiFetch<NotificationItem[]>('/api/notifications'),
     ])
       .then(([empData, praiseData, notifData]) => {
         setEmployees(empData);
@@ -42,50 +70,36 @@ export default function App() {
 
   // Handlers for Praises
   const handleSubmitPraise = async (data: { senderEmail: string; recipientEmail: string; content: string; sticker: string }) => {
-    const res = await fetch('/api/praises', {
+    const json = await apiFetch<{ praise: Praise; employees: Employee[] }>('/api/praises', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.error || '칭찬 등록에 실패했습니다.');
-    }
     setPraises(prev => [json.praise, ...prev]);
     setEmployees(json.employees);
     // Refresh notifications
-    const notifRes = await fetch('/api/notifications');
-    const notifData = await notifRes.json();
+    const notifData = await apiFetch<NotificationItem[]>('/api/notifications');
     setNotifications(notifData);
   };
 
   const handleUpdatePraise = async (id: string, content: string, sticker: string) => {
-    const res = await fetch(`/api/praises/${id}`, {
+    const updated = await apiFetch<Praise>(`/api/praises/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content, sticker }),
     });
-    const updated = await res.json();
-    if (!res.ok) {
-      throw new Error(updated.error || '수정에 실패했습니다.');
-    }
     setPraises(prev => prev.map(p => p.id === id ? updated : p));
   };
 
   const handleDeletePraise = async (id: string) => {
     if (!window.confirm('정말 이 칭찬 릴레이 글을 삭제하시겠습니까?')) return;
-    const res = await fetch(`/api/praises/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      setPraises(prev => prev.filter(p => p.id !== id));
-    }
+    await apiFetch(`/api/praises/${id}`, { method: 'DELETE' });
+    setPraises(prev => prev.filter(p => p.id !== id));
   };
 
   const handleLikePraise = async (id: string) => {
-    const res = await fetch(`/api/praises/${id}/like`, { method: 'POST' });
-    const updated = await res.json();
-    if (res.ok) {
-      setPraises(prev => prev.map(p => p.id === id ? updated : p));
-    }
+    const updated = await apiFetch<Praise>(`/api/praises/${id}/like`, { method: 'POST' });
+    setPraises(prev => prev.map(p => p.id === id ? updated : p));
   };
 
   const handleStartEditPraise = (praise: Praise) => {
@@ -95,62 +109,42 @@ export default function App() {
 
   // Handlers for Employees
   const handleAddEmployee = async (emp: { name: string; department: string; phone: string; email: string }) => {
-    const res = await fetch('/api/employees', {
+    const newEmp = await apiFetch<Employee>('/api/employees', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(emp),
     });
-    const newEmp = await res.json();
-    if (res.ok) {
-      setEmployees(prev => [...prev, newEmp]);
-    } else {
-      throw new Error(newEmp.error);
-    }
+    setEmployees(prev => [...prev, newEmp]);
   };
 
   const handleUpdateEmployee = async (id: string, emp: { name: string; department: string; phone: string; email: string; isEligibleToRelay: boolean }) => {
-    const res = await fetch(`/api/employees/${id}`, {
+    await apiFetch(`/api/employees/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(emp),
     });
-    const updated = await res.json();
-    if (res.ok) {
-      // If this employee is set to eligible, unset others
-      const empRes = await fetch('/api/employees');
-      const allEmp = await empRes.json();
-      setEmployees(allEmp);
-    } else {
-      throw new Error(updated.error);
-    }
+    const allEmp = await apiFetch<Employee[]>('/api/employees');
+    setEmployees(allEmp);
   };
 
   const handleDeleteEmployee = async (id: string) => {
     if (!window.confirm('정말 이 임직원을 삭제하시겠습니까?')) return;
-    const res = await fetch(`/api/employees/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      setEmployees(prev => prev.filter(e => e.id !== id));
-    }
+    await apiFetch(`/api/employees/${id}`, { method: 'DELETE' });
+    setEmployees(prev => prev.filter(e => e.id !== id));
   };
 
   const handleBulkAddEmployees = async (items: any[]) => {
-    const res = await fetch('/api/employees/bulk', {
+    await apiFetch('/api/employees/bulk', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items }),
     });
-    if (res.ok) {
-      const empRes = await fetch('/api/employees');
-      const allEmp = await empRes.json();
-      setEmployees(allEmp);
-    } else {
-      const err = await res.json();
-      throw new Error(err.error);
-    }
+    const allEmp = await apiFetch<Employee[]>('/api/employees');
+    setEmployees(allEmp);
   };
 
   const handleMarkAsRead = async (id: string) => {
-    await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+    await apiFetch(`/api/notifications/${id}/read`, { method: 'POST' });
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
 
