@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Lock, Mail, User, Sparkles, KeyRound, Database, ArrowRight, Code } from 'lucide-react';
+import { supabase, isSupabaseConfigured, saveSupabaseConfig } from '../lib/supabase';
+import { Lock, Mail, User, Sparkles, KeyRound, Database, ArrowRight, Settings, Check } from 'lucide-react';
 
 interface AuthScreenProps {
   onLoginSuccess: (user: { email: string; name: string }) => void;
@@ -14,6 +14,24 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showSqlModal, setShowSqlModal] = useState(false);
+
+  // Supabase Config states
+  const [showConfig, setShowConfig] = useState(false);
+  const [inputUrl, setInputUrl] = useState(() => {
+    try { return localStorage.getItem('SUPABASE_URL') || ''; } catch { return ''; }
+  });
+  const [inputKey, setInputKey] = useState(() => {
+    try { return localStorage.getItem('SUPABASE_ANON_KEY') || ''; } catch { return ''; }
+  });
+
+  const handleSaveConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputUrl || !inputKey) {
+      alert('Supabase URL과 Anon Key를 모두 입력해주세요.');
+      return;
+    }
+    saveSupabaseConfig(inputUrl, inputKey);
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,19 +135,69 @@ CREATE POLICY "Enable read/write for authenticated users on notifications" ON pu
 
   return (
     <div className="min-h-screen notebook-bg flex items-center justify-center p-4">
-      <div className="crayon-card bg-white w-full max-w-md p-8 shadow-2xl border-pink-300 relative">
+      <div className="crayon-card bg-white w-full max-w-lg p-8 shadow-2xl border-pink-300 relative">
         <div className="absolute -top-4 -right-4 bg-yellow-200 text-amber-900 px-4 py-1.5 rounded-full font-bold shadow-sm border border-dashed border-amber-400 rotate-3">
           🔒 Supabase 인가 로그인
         </div>
 
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="text-5xl mb-2">🎨</div>
           <h1 className="text-3xl font-extrabold text-pink-700 mb-1">사내 칭찬릴레이</h1>
           <p className="text-gray-600 text-sm">
             {isSupabaseConfigured
-              ? 'Supabase 인증으로 안전하게 로그인하세요.'
-              : 'Supabase 연동 전 데모 로그인 모드 (환경변수 설정 시 Supabase Auth 활성화)'}
+              ? '✨ Supabase 인증 연동 완료 (정상 연결됨)'
+              : '⚠️ Supabase 미설정 상태 (데모 로그인 모드 — 아래에서 Supabase 연결을 설정하실 수 있습니다)'}
           </p>
+        </div>
+
+        {/* Supabase Config Accordion / Section */}
+        <div className="mb-6 bg-purple-50/70 border-2 border-purple-200 rounded-2xl p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-purple-900 font-bold text-sm">
+              <Settings className="w-4 h-4 text-purple-600" />
+              <span>Supabase 프로젝트 연결 설정</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowConfig(!showConfig)}
+              className="text-xs bg-purple-200 hover:bg-purple-300 text-purple-900 font-bold px-3 py-1 rounded-xl cursor-pointer"
+            >
+              {showConfig ? '설정 닫기 🔼' : '설정 열기 ⚙️'}
+            </button>
+          </div>
+
+          {showConfig && (
+            <form onSubmit={handleSaveConfig} className="mt-3 pt-3 border-t border-purple-200 space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Supabase URL</label>
+                <input
+                  type="text"
+                  placeholder="https://xyzcompany.supabase.co"
+                  value={inputUrl}
+                  onChange={(e) => setInputUrl(e.target.value)}
+                  className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Supabase Anon Key</label>
+                <input
+                  type="password"
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5c..."
+                  value={inputKey}
+                  onChange={(e) => setInputKey(e.target.value)}
+                  className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-300"
+                />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="crayon-btn bg-purple-400 hover:bg-purple-500 text-white font-bold px-4 py-1.5 text-xs shadow-xs cursor-pointer flex items-center gap-1"
+                >
+                  <Check className="w-3.5 h-3.5" /> 저장 및 연결하기
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         {error && (
